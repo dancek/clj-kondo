@@ -1225,24 +1225,26 @@
                       (types/add-arg-type-from-expr ctx expr)
                       (analyze-children ctx children))
                   (if-let [full-fn-name (utils/symbol-from-token function)]
-                    (let [full-fn-name (with-meta full-fn-name (meta function))
-                          unresolved? (nil? (namespace full-fn-name))
-                          binding-call? (and unresolved?
-                                             (contains? bindings full-fn-name))]
-                      (if binding-call?
-                        (do
-                          (types/add-arg-type-from-expr ctx expr)
-                          (analyze-binding-call ctx full-fn-name expr))
-                        (let [ret (analyze-call ctx {:arg-count arg-count
-                                                     :full-fn-name full-fn-name
-                                                     :row row
-                                                     :col col
-                                                     :expr expr})
-                              maybe-call (first ret)]
-                          (if (= :call (:type maybe-call))
-                            (types/add-arg-type-from-call ctx maybe-call expr)
-                            (types/add-arg-type-from-expr ctx expr))
-                          ret)))
+                    (if (str/ends-with? full-fn-name ".")
+                      (recur ctx (macroexpand/expand-constructor expr))
+                      (let [full-fn-name (with-meta full-fn-name (meta function))
+                            unresolved? (nil? (namespace full-fn-name))
+                            binding-call? (and unresolved?
+                                               (contains? bindings full-fn-name))]
+                        (if binding-call?
+                          (do
+                            (types/add-arg-type-from-expr ctx expr)
+                            (analyze-binding-call ctx full-fn-name expr))
+                          (let [ret (analyze-call ctx {:arg-count arg-count
+                                                       :full-fn-name full-fn-name
+                                                       :row row
+                                                       :col col
+                                                       :expr expr})
+                                maybe-call (first ret)]
+                            (if (= :call (:type maybe-call))
+                              (types/add-arg-type-from-call ctx maybe-call expr)
+                              (types/add-arg-type-from-expr ctx expr))
+                            ret))))
                     (cond
                       (utils/boolean-token? function)
                       (do (reg-not-a-function! ctx expr "boolean")
